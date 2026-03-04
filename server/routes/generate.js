@@ -121,6 +121,38 @@ router.get("/pexels", auth, async (req, res) => {
   }
 });
 
+// Image proxy — fetch external listing images server-side to avoid CDN hotlink blocking
+const ALLOWED_HOSTS = ["photos.zillowstatic.com", "photos.rdc.moveaws.com", "ap.rdcpix.com", "images.pexels.com", "ssl.cdn-redfin.com", "cdn-redfin.com"];
+
+router.get("/image-proxy", auth, async (req, res) => {
+  try {
+    const { url } = req.query;
+    if (!url) return res.status(400).json({ error: "url is required" });
+
+    let parsed;
+    try { parsed = new URL(url); } catch { return res.status(400).json({ error: "invalid url" }); }
+
+    if (!ALLOWED_HOSTS.some(h => parsed.hostname === h || parsed.hostname.endsWith("." + h))) {
+      return res.status(403).json({ error: "host not allowed" });
+    }
+
+    const imgRes = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; FlyrAI/1.0)", "Referer": parsed.origin },
+      redirect: "follow",
+    });
+    if (!imgRes.ok) return res.status(imgRes.status).end();
+
+    const ct = imgRes.headers.get("content-type") || "image/jpeg";
+    res.setHeader("Content-Type", ct);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+
+    const arrayBuf = await imgRes.arrayBuffer();
+    res.send(Buffer.from(arrayBuf));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Import URL
 router.post("/import-url", auth, async (req, res) => {
   try {

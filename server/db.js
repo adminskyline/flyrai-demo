@@ -51,6 +51,11 @@ export async function initDB() {
     )
   `);
 
+  // Add logo_url column to users
+  try {
+    db.run("ALTER TABLE users ADD COLUMN logo_url TEXT DEFAULT NULL");
+  } catch { /* column already exists */ }
+
   // Add pexels_key columns (sql.js lacks IF NOT EXISTS for columns)
   try {
     db.run("ALTER TABLE user_settings ADD COLUMN pexels_key_enc TEXT DEFAULT NULL");

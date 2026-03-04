@@ -23,7 +23,7 @@ const FlyerCard = forwardRef(function FlyerCard({ tIdx, flyerData, property, pro
       {/* Hero */}
       <div style={{ position:"relative", height:heroH, flexShrink:0, overflow:"hidden" }}>
         {hasImages ? (
-          <img src={property.images[0]} crossOrigin="anonymous" alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+          <img src={property.images[0]} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={e=>{e.target.style.display="none"}} />
         ) : (
           <HouseScene variant={tIdx} width={W} height={heroH} accent={p.accent} />
         )}
@@ -41,7 +41,7 @@ const FlyerCard = forwardRef(function FlyerCard({ tIdx, flyerData, property, pro
             {(hasImages ? property.images.slice(1,3) : [1,2]).map((img,i) => (
               <div key={i} style={{ width:s(42), height:s(34), borderRadius:s(4), overflow:"hidden", border:`1.5px solid rgba(255,255,255,.3)`, boxShadow:"0 2px 8px rgba(0,0,0,.3)" }}>
                 {hasImages ? (
-                  <img src={img} crossOrigin="anonymous" alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                  <img src={img} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={e=>{e.target.style.display="none"}} />
                 ) : (
                   <HouseScene variant={(tIdx+i+1)%4} width={s(42)} height={s(34)} />
                 )}
@@ -107,7 +107,12 @@ const FlyerCard = forwardRef(function FlyerCard({ tIdx, flyerData, property, pro
       </div>
 
       {/* Agent bar */}
-      <div style={{ background:p.surface, borderTop:`1px solid ${p.divider}`, padding:`${s(7)}px ${s(10)}px`, display:"flex", gap:s(7), flexShrink:0 }}>
+      <div style={{ background:p.surface, borderTop:`1px solid ${p.divider}`, padding:`${s(7)}px ${s(10)}px`, display:"flex", gap:s(7), flexShrink:0, alignItems:"center" }}>
+        {profile?.logo && (
+          <div style={{ width:s(28), height:s(28), flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", marginRight:s(2) }}>
+            <img src={profile.logo} alt="" style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain" }}/>
+          </div>
+        )}
         {[profile, showPartner&&partner].filter(Boolean).map((ag,i)=>(
           <div key={i} style={{ flex:1, display:"flex", alignItems:"center", gap:s(6), paddingRight:i===0&&showPartner?s(7):0, borderRight:i===0&&showPartner?`1px solid ${p.divider}`:"none" }}>
             <div style={{ width:s(28), height:s(28), borderRadius:"50%", flexShrink:0, overflow:"hidden", background:`linear-gradient(135deg,${p.cta}55,${p.cta}99)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:s(13), border:`1.5px solid ${p.divider}` }}>
@@ -117,7 +122,7 @@ const FlyerCard = forwardRef(function FlyerCard({ tIdx, flyerData, property, pro
               <div style={{ fontSize:s(9), fontWeight:700, color:p.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{ag.name}</div>
               <div style={{ fontSize:s(8), color:p.muted, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{ag.company}</div>
               <div style={{ fontSize:s(8), color:p.muted, opacity:.8 }}>{ag.phone}</div>
-              {ag.type==="lo"&&ag.nmls&&<div style={{ fontSize:s(7), color:p.muted, opacity:.6 }}>NMLS #{ag.nmls}</div>}
+              {ag.type==="lo"&&(ag.nmls||ag.companyNmls||ag.company_nmls)&&<div style={{ fontSize:s(7), color:p.muted, opacity:.6 }}>{ag.nmls?`NMLS #${ag.nmls}`:""}{ag.nmls&&(ag.companyNmls||ag.company_nmls)?" | ":""}{(ag.companyNmls||ag.company_nmls)?`Co. NMLS #${ag.companyNmls||ag.company_nmls}`:""}</div>}
             </div>
           </div>
         ))}

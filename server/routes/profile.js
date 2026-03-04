@@ -13,7 +13,7 @@ router.get("/", auth, (req, res) => {
 });
 
 router.put("/", auth, (req, res) => {
-  const allowed = ["name", "title", "phone", "company", "nmls", "company_nmls", "license", "states", "headshot_url"];
+  const allowed = ["name", "title", "phone", "company", "nmls", "company_nmls", "license", "states", "headshot_url", "logo_url"];
   const sets = [];
   const values = [];
   for (const key of allowed) {

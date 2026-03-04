@@ -1,5 +1,48 @@
 import { callAI } from "./ai.js";
 
+function extractImagesFromScriptData(html) {
+  const urls = new Set();
+  const imgUrlRe = /https?:\/\/[^\s"'<>\\)]+\.(?:jpg|jpeg|png|webp)(?:\?[^\s"'<>\\)]*)?/gi;
+
+  // 1. __NEXT_DATA__ (used by Zillow, Realtor.com, and other Next.js sites)
+  const nextDataRe = /<script\s+id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let m;
+  while ((m = nextDataRe.exec(html)) !== null) {
+    try {
+      const data = JSON.parse(m[1]);
+      const walkJson = (obj, depth = 0) => {
+        if (depth > 12 || !obj || typeof obj !== "object") return;
+        for (const [key, val] of Object.entries(obj)) {
+          if (typeof val === "string" && /https?:\/\/.+\.(jpg|jpeg|png|webp)/i.test(val)) {
+            urls.add(val.split("?")[0].includes(".") ? val : val);
+          }
+          if (typeof val === "object" && val !== null) walkJson(val, depth + 1);
+        }
+      };
+      walkJson(data);
+    } catch { /* bad JSON */ }
+  }
+
+  // 2. Generic script blocks containing image CDN URLs (window.__data__, preloaded state, etc.)
+  const scriptRe = /<script[^>]*>([\s\S]*?)<\/script>/gi;
+  while ((m = scriptRe.exec(html)) !== null) {
+    const block = m[1];
+    // Only scan blocks that look like they contain data (JSON-like or assignments)
+    if (block.length < 200 || block.length > 500000) continue;
+    if (!/photos\.|zillowstatic|rdcpix|rdc\.moveaws|mediaserver/i.test(block)) continue;
+    let match;
+    while ((match = imgUrlRe.exec(block)) !== null) {
+      urls.add(match[0]);
+    }
+  }
+
+  // 3. CDN-specific patterns anywhere in the HTML
+  const cdnRe = /https?:\/\/(?:photos\.zillowstatic\.com|(?:photos|ap)\.(?:rdc\.moveaws|rdcpix)\.com|ssl\.cdn-redfin\.com|mediaserver\.resaas\.com)[^\s"'<>\\)]+/gi;
+  while ((m = cdnRe.exec(html)) !== null) urls.add(m[0]);
+
+  return [...urls];
+}
+
 function extractImagesFromHtml(html) {
   const urls = new Set();
 
@@ -27,9 +70,9 @@ function extractImagesFromHtml(html) {
     } catch { /* bad JSON-LD */ }
   }
 
-  // CDN patterns for Zillow, Realtor.com
-  const cdnRe = /https?:\/\/(?:photos\.zillowstatic\.com|photos\.rdc\.moveaws\.com|ap\.rdcpix\.com)[^\s"'<>)]+/gi;
-  while ((m = cdnRe.exec(html)) !== null) urls.add(m[0]);
+  // Merge with script-tag extraction (the main source for Zillow/Realtor)
+  const scriptUrls = extractImagesFromScriptData(html);
+  scriptUrls.forEach(u => urls.add(u));
 
   // Filter out logos/icons, deduplicate, limit to 8
   return [...urls]
@@ -61,5 +104,8 @@ ${trimmed}`;
 
   const text = await callAI(apiKey, provider, system, prompt, 500);
   const json = JSON.parse(text.replace(/```json|```/g, "").trim());
-  return { ...json, images };
+
+  // Transform image URLs to proxy URLs to avoid CDN hotlink blocking
+  const proxiedImages = images.map(u => `/api/generate/image-proxy?url=${encodeURIComponent(u)}`);
+  return { ...json, images: proxiedImages };
 }

@@ -18,6 +18,19 @@ export default function SettingsPage({ onBack }) {
     api.get("/settings").then(d => setSettings(d));
   }, []);
 
+  const fileToBase64 = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  const handleImageUpload = async (field, file) => {
+    if (!file) return;
+    const base64 = await fileToBase64(file);
+    setProfile(p => ({ ...p, [field]: base64 }));
+  };
+
   const saveProfile = async () => {
     setSaving(true); setMsg("");
     try {
@@ -30,6 +43,8 @@ export default function SettingsPage({ onBack }) {
         company_nmls: profile.company_nmls,
         license: profile.license,
         states: profile.states,
+        headshot_url: profile.headshot_url || null,
+        logo_url: profile.logo_url || null,
       });
       setProfile(res.profile);
       await refreshUser();
@@ -96,6 +111,34 @@ export default function SettingsPage({ onBack }) {
             {user.account_type === "realtor" && (
               <input placeholder="State License #" value={profile.license||""} onChange={e=>setProfile(p=>({...p,license:e.target.value}))} style={INP} />
             )}
+            {/* Headshot & Logo uploads */}
+            <div style={{ display:"flex", gap:16, marginTop:4 }}>
+              {/* Headshot */}
+              <div style={{ flex:1, textAlign:"center" }}>
+                <div style={{ fontSize:13, fontWeight:600, color:"#334155", marginBottom:8 }}>Headshot</div>
+                <div style={{ width:80, height:80, borderRadius:"50%", overflow:"hidden", margin:"0 auto 8px", background:"#f1f5f9", border:"2px solid #e2e8f0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:32 }}>
+                  {profile.headshot_url ? <img src={profile.headshot_url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/> : "\u{1F464}"}
+                </div>
+                <label style={{ display:"inline-block", padding:"5px 12px", borderRadius:6, border:"1.5px solid #93c5fd", background:"#f8faff", cursor:"pointer", fontSize:11, fontWeight:600, color:"#1e3a5f" }}>
+                  Upload
+                  <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>handleImageUpload("headshot_url",e.target.files?.[0])}/>
+                </label>
+                {profile.headshot_url && <button onClick={()=>setProfile(p=>({...p,headshot_url:null}))} style={{display:"block",margin:"4px auto 0",background:"none",border:"none",color:"#dc2626",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>Remove</button>}
+              </div>
+              {/* Logo */}
+              <div style={{ flex:1, textAlign:"center" }}>
+                <div style={{ fontSize:13, fontWeight:600, color:"#334155", marginBottom:8 }}>Company Logo</div>
+                <div style={{ width:80, height:80, borderRadius:10, overflow:"hidden", margin:"0 auto 8px", background:"#f1f5f9", border:"2px solid #e2e8f0", display:"flex", alignItems:"center", justifyContent:"center", fontSize:32 }}>
+                  {profile.logo_url ? <img src={profile.logo_url} alt="" style={{width:"100%",height:"100%",objectFit:"contain",padding:4}}/> : "\u{1F3E2}"}
+                </div>
+                <label style={{ display:"inline-block", padding:"5px 12px", borderRadius:6, border:"1.5px solid #93c5fd", background:"#f8faff", cursor:"pointer", fontSize:11, fontWeight:600, color:"#1e3a5f" }}>
+                  Upload
+                  <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>handleImageUpload("logo_url",e.target.files?.[0])}/>
+                </label>
+                {profile.logo_url && <button onClick={()=>setProfile(p=>({...p,logo_url:null}))} style={{display:"block",margin:"4px auto 0",background:"none",border:"none",color:"#dc2626",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>Remove</button>}
+              </div>
+            </div>
+
             <div style={{ fontSize:13, fontWeight:600, color:"#334155", marginTop:4 }}>Licensed States</div>
             <div style={{ display:"flex", flexWrap:"wrap", gap:5, maxHeight:120, overflowY:"auto" }}>
               {STATES.map(s=>(

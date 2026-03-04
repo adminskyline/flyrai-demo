@@ -1,7 +1,8 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useAuth } from "./AuthContext";
 import api from "./api";
-import { ASSET_TYPES, FLYER_FORMATS, STATES, COMPLIANCE, fmt$ } from "./data/constants";
+import { ASSET_TYPES, FLYER_FORMATS, STATES, fmt$ } from "./data/constants";
+import { validateCompliance } from "./data/compliance";
 import { SH, Card, Toggle, AvatarBox, Btn, CARD, INP, BTN_P, BTN_S, CatLbl } from "./components/SharedUI";
 import HouseScene from "./components/HouseScene";
 import FlyerCard from "./components/FlyerCard";
@@ -29,7 +30,8 @@ export default function FlyrAI({ onDone }) {
     license: user.license || "",
     states: user.states || ["FL"],
     headshot: user.headshot_url || null,
-  } : { type:"lo", name:"Demo User", title:"Loan Officer", phone:"", company:"", nmls:"", companyNmls:"", license:"", states:["FL"], headshot:null };
+    logo: user.logo_url || null,
+  } : { type:"lo", name:"Demo User", title:"Loan Officer", phone:"", company:"", nmls:"", companyNmls:"", license:"", states:["FL"], headshot:null, logo:null };
 
   const [step, setStep]           = useState(0);
   const [asset, setAsset]         = useState(null);
@@ -43,11 +45,16 @@ export default function FlyrAI({ onDone }) {
   const [compliance, setCompliance] = useState([]);
   const [compRunning, setCompRunning] = useState(false);
   const [compPassed, setCompPassed]   = useState(false);
+  const [compFailed, setCompFailed]   = useState(false);
   const [generating, setGenerating]   = useState(false);
   const [flyerData, setFlyerData]     = useState(null);
   const [playbookData, setPlaybookData] = useState(null);
   const [activeTpl, setActiveTpl]     = useState(0);
   const [pexelsImages, setPexelsImages] = useState({});
+  const [uploadedPhotos, setUploadedPhotos] = useState([]);
+  const [playbookDownloaded, setPlaybookDownloaded] = useState(false);
+  const [playbookDownloading, setPlaybookDownloading] = useState(false);
+  const photoInputRef = useRef();
   const partnerImgRef = useRef();
   const flyerRef = useRef();
   const playbookRef = useRef();
@@ -66,7 +73,7 @@ export default function FlyrAI({ onDone }) {
     try {
       const res = await api.post("/import-url", { url: property.url });
       const j = res.data;
-      setProperty(p=>({...p,...j,price:String(j.price||p.price),images:j.images||[]}));
+      setProperty(p=>({...p,...j,price:String(j.price||p.price),images:[...uploadedPhotos,...(j.images||[])].slice(0,8)}));
     } catch {
       setProperty(p=>({...p,address:"2847 Cypress Lake Dr, Tampa, FL 33618",price:"489000",beds:"4",baths:"3",sqft:"2,340",description:"Stunning 4-bedroom pool home in a private gated community. Chef's kitchen, open floor plan, and oversized screened lanai overlooking conservation lot.",images:[
         "https://images.pexels.com/photos/186077/pexels-photo-186077.jpeg?auto=compress&cs=tinysrgb&w=800",
@@ -79,13 +86,16 @@ export default function FlyrAI({ onDone }) {
 
   // ── Compliance ──
   const runCompliance = async () => {
-    setCompRunning(true); setCompliance([]);
-    const rules = [...(COMPLIANCE[acctType]||[]), ...(cobrand&&partner.type?(COMPLIANCE[partner.type]||[]).map(r=>`[Partner] ${r}`):[])];
-    for (let i=0;i<rules.length;i++) {
-      await new Promise(r=>setTimeout(r,260+Math.random()*180));
-      setCompliance(p=>[...p,{label:rules[i]}]);
+    setCompRunning(true); setCompliance([]); setCompPassed(false); setCompFailed(false);
+    const { results } = validateCompliance(acctType, profile, cobrand, partner);
+    for (let i=0;i<results.length;i++) {
+      await new Promise(r=>setTimeout(r,200+Math.random()*140));
+      setCompliance(p=>[...p, results[i]]);
     }
-    setCompRunning(false); setCompPassed(true);
+    const allPassed = results.every(r => r.passed);
+    setCompRunning(false);
+    setCompPassed(allPassed);
+    setCompFailed(!allPassed);
   };
 
   // ── Generate flyer ──
@@ -166,12 +176,6 @@ export default function FlyrAI({ onDone }) {
   const fetchPexelsForPlaybook = async (assetIdVal) => {
     try {
       const baseQuery = PEXELS_QUERIES[assetIdVal] || "real estate home buying";
-      // Fetch cover image
-      const coverRes = await api.get(`/generate/pexels?query=${encodeURIComponent(baseQuery)}&per_page=2`);
-      const imgs = {};
-      if (coverRes.photos?.[0]?.src) imgs.cover = coverRes.photos[0].src;
-
-      // Fetch images for every page — varied queries for visual diversity
       const pageQueries = [
         "home interior modern kitchen",
         "mortgage documents signing couple",
@@ -182,9 +186,20 @@ export default function FlyrAI({ onDone }) {
         "financial planning calculator",
         "moving boxes new home",
       ];
+
+      // Fetch all images in parallel for speed
+      const allQueries = [
+        api.get(`/generate/pexels?query=${encodeURIComponent(baseQuery)}&per_page=2`),
+        ...pageQueries.map(q => api.get(`/generate/pexels?query=${encodeURIComponent(q)}&per_page=1`)),
+      ];
+      const results = await Promise.allSettled(allQueries);
+      const imgs = {};
+      if (results[0].status === "fulfilled" && results[0].value.photos?.[0]?.src)
+        imgs.cover = results[0].value.photos[0].src;
       for (let i = 0; i < pageQueries.length; i++) {
-        const pRes = await api.get(`/generate/pexels?query=${encodeURIComponent(pageQueries[i])}&per_page=1`);
-        if (pRes.photos?.[0]?.src) imgs[`page_${i}`] = pRes.photos[0].src;
+        const r = results[i + 1];
+        if (r.status === "fulfilled" && r.value.photos?.[0]?.src)
+          imgs[`page_${i}`] = r.value.photos[0].src;
       }
       setPexelsImages(imgs);
     } catch {
@@ -193,10 +208,10 @@ export default function FlyrAI({ onDone }) {
   };
 
   const reset = () => {
-    setStep(0);setFlyerData(null);setPlaybookData(null);setCompliance([]);setCompPassed(false);
+    setStep(0);setFlyerData(null);setPlaybookData(null);setCompliance([]);setCompPassed(false);setCompFailed(false);
     setAsset(null);setProperty({url:"",address:"",price:"",beds:"",baths:"",sqft:"",description:"",images:[]});
     setPartner({type:"",name:"",title:"",phone:"",company:"",nmls:"",license:"",headshot:null});
-    setCobrand(false);setUseExisting(true);setCompRunning(false);setPexelsImages({});
+    setCobrand(false);setUseExisting(true);setCompRunning(false);setPexelsImages({});setUploadedPhotos([]);setPlaybookDownloaded(false);setPlaybookDownloading(false);
   };
 
   const goHome = () => { reset(); if (onDone) onDone(); };
@@ -228,11 +243,27 @@ export default function FlyrAI({ onDone }) {
       exportElementToPdf(flyerRef.current, `FlyrAI-${fmtObj?.label || "flyer"}.pdf`);
     }
   };
-  const downloadPlaybook = () => {
+  const downloadPlaybook = useCallback(async () => {
     if (playbookRef.current) {
-      exportPlaybookToPdf(playbookRef.current, `FlyrAI-${assetObj?.label || "playbook"}.pdf`);
+      setPlaybookDownloading(true);
+      try {
+        await exportPlaybookToPdf(playbookRef.current, `FlyrAI-${assetObj?.label || "playbook"}.pdf`);
+        setPlaybookDownloaded(true);
+      } catch { /* silent */ }
+      setPlaybookDownloading(false);
     }
-  };
+  }, [assetObj]);
+
+  // Auto-download playbook PDF when reaching step 7
+  const autoDownloadDone = useRef(false);
+  useEffect(() => {
+    if (step === 7 && isPlaybook && playbookData && !autoDownloadDone.current && !playbookDownloaded) {
+      autoDownloadDone.current = true;
+      const timer = setTimeout(() => downloadPlaybook(), 800);
+      return () => clearTimeout(timer);
+    }
+    if (step !== 7) autoDownloadDone.current = false;
+  }, [step, playbookData, isPlaybook, playbookDownloaded, downloadPlaybook]);
 
   // ── Step renders ──────────────────────────────────────────────────────────
 
@@ -293,6 +324,33 @@ export default function FlyrAI({ onDone }) {
         </div>
         <textarea placeholder="Property description\u2026" value={property.description} onChange={e=>setProperty(p=>({...p,description:e.target.value}))} rows={3} style={{...INP,resize:"vertical"}}/>
       </div>
+
+      {/* Photo upload */}
+      <div style={{...CARD,marginTop:12}}>
+        <div style={{fontWeight:600,marginBottom:8,display:"flex",alignItems:"center",gap:6}}>{"\u{1F4F7}"} Property Photos <span style={{fontSize:11,color:"#94a3b8",fontWeight:400}}>(up to 8)</span></div>
+        {property.images.length > 0 && (
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
+            {property.images.slice(0,8).map((img,i)=>(
+              <div key={i} style={{width:64,height:48,borderRadius:6,overflow:"hidden",border:"1.5px solid #e2e8f0",position:"relative"}}>
+                <img src={img} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.parentElement.style.display="none"}}/>
+                <button onClick={()=>setProperty(p=>({...p,images:p.images.filter((_,j)=>j!==i)}))} style={{position:"absolute",top:1,right:1,background:"rgba(0,0,0,.5)",color:"white",border:"none",borderRadius:"50%",width:16,height:16,fontSize:10,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>{"\u00D7"}</button>
+              </div>
+            ))}
+          </div>
+        )}
+        <label style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 14px",borderRadius:8,border:"1.5px dashed #93c5fd",background:"#f8faff",cursor:"pointer",fontSize:12,fontWeight:600,color:"#1e3a5f"}}>
+          {"\u2B06\uFE0F"} Upload Photos
+          <input ref={photoInputRef} type="file" accept="image/*" multiple style={{display:"none"}}
+            onChange={e=>{
+              const files = [...(e.target.files||[])].slice(0,8-property.images.length);
+              const urls = files.map(f=>URL.createObjectURL(f));
+              setUploadedPhotos(p=>[...p,...urls]);
+              setProperty(p=>({...p,images:[...p.images,...urls].slice(0,8)}));
+              e.target.value="";
+            }}/>
+        </label>
+      </div>
+
       <div style={{display:"flex",justifyContent:"flex-end",marginTop:16}}>
         <Btn onClick={()=>setStep(4)}>Continue {"\u2192"}</Btn>
       </div>
@@ -443,13 +501,24 @@ export default function FlyrAI({ onDone }) {
           <div style={{...CARD,marginBottom:14}}>
             {compliance.map((r,i)=>(
               <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:i<compliance.length-1?"1px solid #f1f5f9":"none"}}>
-                <span style={{fontSize:14}}>{"\u2705"}</span>
-                <span style={{flex:1,fontSize:13}}>{r.label}</span>
-                <span style={{fontSize:11,color:"#22c55e",fontWeight:700}}>PASS</span>
+                <span style={{fontSize:14}}>{r.passed ? "\u2705" : "\u274C"}</span>
+                <span style={{flex:1,fontSize:13,color:r.passed?"inherit":"#dc2626"}}>{r.label}</span>
+                <span style={{fontSize:11,color:r.passed?"#22c55e":"#dc2626",fontWeight:700}}>{r.passed?"PASS":"FAIL"}</span>
               </div>
             ))}
             {compRunning&&<div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0"}}><span>{"\u23F3"}</span><span style={{fontSize:13,color:"#94a3b8"}}>Scanning{"\u2026"}</span></div>}
           </div>
+          {compFailed&&(
+            <div style={{background:"#fef2f2",border:"1px solid #fca5a5",borderRadius:10,padding:"14px 18px",display:"flex",alignItems:"flex-start",gap:12,marginBottom:18}}>
+              <span style={{fontSize:22,flexShrink:0}}>{"\u26A0\uFE0F"}</span>
+              <div>
+                <div style={{fontWeight:700,color:"#dc2626",marginBottom:4}}>Compliance check failed</div>
+                <div style={{fontSize:12,color:"#b91c1c",lineHeight:1.5}}>
+                  Some required fields are missing. Go to <strong>Settings {"\u2192"} Profile</strong> to update your information, then re-run the compliance scan.
+                </div>
+              </div>
+            </div>
+          )}
           {compPassed&&(
             <>
               <div style={{background:"#dcfce7",border:"1px solid #86efac",borderRadius:10,padding:"14px 18px",display:"flex",alignItems:"center",gap:12,marginBottom:18}}>
@@ -479,10 +548,30 @@ export default function FlyrAI({ onDone }) {
 
       {isPlaybook && playbookData ? (
         <>
-          <PlaybookPreview ref={playbookRef} playbookData={playbookData} profile={profile} partner={activePartner} cobrand={cobrand} accountType={acctType} selectedStates={states} assetId={asset} pexelsImages={pexelsImages}/>
-          <div style={{display:"flex",gap:8,marginTop:18}}>
-            <button onClick={downloadPlaybook} style={{...BTN_P,flex:1,fontSize:13}}>{"\u2B07\uFE0F"} Download PDF</button>
-            <button onClick={goHome} style={{...BTN_S,fontSize:16,padding:"10px 14px"}}>{"\u{1F504}"}</button>
+          {/* Hidden offscreen render for PDF capture */}
+          <div style={{position:"absolute",left:"-9999px",top:0,opacity:0,pointerEvents:"none"}}>
+            <PlaybookPreview ref={playbookRef} playbookData={playbookData} profile={profile} partner={activePartner} cobrand={cobrand} accountType={acctType} selectedStates={states} assetId={asset} pexelsImages={pexelsImages}/>
+          </div>
+
+          {/* User-facing UI */}
+          <div style={{textAlign:"center",padding:"28px 16px"}}>
+            <div style={{fontSize:52,marginBottom:14}}>{playbookDownloaded?"\u2705":playbookDownloading?"\u23F3":"\u{1F4D6}"}</div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:900,color:"#0f172a",marginBottom:8}}>
+              {playbookDownloaded?"PDF Downloaded!":playbookDownloading?"Generating PDF...":"Your Playbook Is Ready!"}
+            </div>
+            <div style={{fontSize:13,color:"#64748b",marginBottom:24,lineHeight:1.6}}>
+              {playbookDownloaded
+                ?"Check your downloads folder. Click below to download again."
+                :playbookDownloading
+                  ?"Rendering pages... this may take a moment."
+                  :`"${playbookData.title}" \u2014 ${pages.length + 1} pages`}
+            </div>
+            <div style={{display:"flex",gap:8,justifyContent:"center"}}>
+              <button onClick={downloadPlaybook} disabled={playbookDownloading} style={{...BTN_P,fontSize:14,padding:"12px 28px",opacity:playbookDownloading?.5:1}}>
+                {playbookDownloading?"\u23F3 Generating...":playbookDownloaded?"\u2B07\uFE0F Download Again":"\u2B07\uFE0F Download PDF"}
+              </button>
+              <button onClick={goHome} style={{...BTN_S,fontSize:16,padding:"10px 14px"}}>{"\u{1F504}"}</button>
+            </div>
           </div>
         </>
       ) : flyerData ? (

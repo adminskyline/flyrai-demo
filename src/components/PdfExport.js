@@ -50,40 +50,41 @@ export async function exportPlaybookToPdf(element, filename = "FlyrAI-playbook.p
     return;
   }
 
-  // Multi-page: render each [data-playbook-page] as a separate PDF page, fit to full width
-  const A4_W = 595.28;
-  const A4_H = 841.89;
-  const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+  // 1:1 page rendering — each page element maps directly to a PDF page
+  // Pages are already rendered at 595×842 (A4), so no scaling/centering needed
+  const pxToPt = 72 / 96;
+  let pdf = null;
 
   for (let i = 0; i < pageElements.length; i++) {
     const el = pageElements[i];
+    const isFooter = el.getAttribute("data-playbook-page") === "footer";
+
     const canvas = await html2canvas(el, {
-      scale: 3,
+      scale: 2,
       useCORS: true,
-      backgroundColor: "#ffffff",
+      backgroundColor: isFooter ? "#f8fafc" : "#ffffff",
       imageTimeout: 15000,
     });
 
     const imgData = canvas.toDataURL("image/jpeg", 0.92);
 
-    // Fill full page width, scale height proportionally
-    const drawW = A4_W;
-    const drawH = (canvas.height / canvas.width) * A4_W;
+    // Use the actual rendered element dimensions for the PDF page
+    const pageW = el.offsetWidth * pxToPt;
+    const pageH = el.offsetHeight * pxToPt;
 
-    // If taller than A4, shrink to fit height instead
-    let finalW = drawW, finalH = drawH;
-    if (drawH > A4_H) {
-      finalH = A4_H;
-      finalW = (canvas.width / canvas.height) * A4_H;
+    if (i === 0) {
+      pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "pt",
+        format: [pageW, pageH],
+      });
+    } else {
+      pdf.addPage([pageW, pageH], "portrait");
     }
 
-    // Center on page
-    const x = (A4_W - finalW) / 2;
-    const y = (A4_H - finalH) / 2;
-
-    if (i > 0) pdf.addPage();
-    pdf.addImage(imgData, "JPEG", x, y, finalW, finalH);
+    // Fill the entire PDF page — no centering, no whitespace
+    pdf.addImage(imgData, "JPEG", 0, 0, pageW, pageH);
   }
 
-  pdf.save(filename);
+  if (pdf) pdf.save(filename);
 }

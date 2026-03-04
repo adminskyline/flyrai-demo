@@ -122,7 +122,7 @@ router.get("/pexels", auth, async (req, res) => {
 });
 
 // Image proxy — fetch external listing images server-side to avoid CDN hotlink blocking
-const ALLOWED_HOSTS = ["photos.zillowstatic.com", "photos.rdc.moveaws.com", "ap.rdcpix.com", "images.pexels.com", "ssl.cdn-redfin.com", "cdn-redfin.com"];
+const ALLOWED_HOSTS = ["photos.zillowstatic.com", "photos.rdc.moveaws.com", "ap.rdcpix.com", "images.pexels.com", "ssl.cdn-redfin.com", "cdn-redfin.com", "mediaserver.resaas.com", "img.zillowstatic.com", "p.rdcpix.com"];
 
 router.get("/image-proxy", auth, async (req, res) => {
   try {
@@ -160,27 +160,9 @@ router.post("/import-url", auth, async (req, res) => {
     if (!url) return res.status(400).json({ error: "url is required" });
 
     const creds = getUserKey(req.userId);
-    if (!creds) {
-      return res.json({
-        mock: true,
-        data: {
-          address: "2847 Cypress Lake Dr, Tampa, FL 33618",
-          price: 489000,
-          beds: 4,
-          baths: 3,
-          sqft: "2,340",
-          description: "Stunning 4-bedroom pool home in a private gated community. Chef's kitchen, open floor plan, and oversized screened lanai.",
-          images: [
-            "https://images.pexels.com/photos/186077/pexels-photo-186077.jpeg?auto=compress&cs=tinysrgb&w=800",
-            "https://images.pexels.com/photos/1396122/pexels-photo-1396122.jpeg?auto=compress&cs=tinysrgb&w=800",
-            "https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=800",
-          ],
-        },
-      });
-    }
-
-    const data = await scrapeListingUrl(url, creds.key, creds.provider);
-    res.json({ mock: false, data });
+    // Always attempt to scrape — pass null key if no API key (scraper will still extract images + basic data from HTML)
+    const data = await scrapeListingUrl(url, creds?.key || null, creds?.provider || "anthropic");
+    res.json({ mock: !creds, data });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

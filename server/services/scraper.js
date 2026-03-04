@@ -81,10 +81,63 @@ function extractImagesFromHtml(html) {
     .slice(0, 8);
 }
 
+// Extract basic property data from HTML meta tags and structured data without AI
+function extractBasicDataFromHtml(html) {
+  const data = { address: "", price: "", beds: "", baths: "", sqft: "", description: "" };
+
+  // Try og:title for address
+  const ogTitle = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i)
+    || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:title["']/i);
+  if (ogTitle) data.address = ogTitle[1].replace(/\s*[|\-–].+$/, "").trim();
+
+  // Try og:description
+  const ogDesc = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i)
+    || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:description["']/i);
+  if (ogDesc) data.description = ogDesc[1].trim();
+
+  // Try JSON-LD for structured data
+  const ldRe = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let m;
+  while ((m = ldRe.exec(html)) !== null) {
+    try {
+      const obj = JSON.parse(m[1]);
+      const items = obj["@graph"] || [obj];
+      for (const item of items) {
+        if (item["@type"] === "SingleFamilyResidence" || item["@type"] === "Product" || item["@type"] === "RealEstateListing") {
+          if (item.name) data.address = data.address || item.name;
+          if (item.description) data.description = data.description || item.description;
+          const addr = item.address;
+          if (addr && typeof addr === "object") {
+            data.address = data.address || [addr.streetAddress, addr.addressLocality, addr.addressRegion, addr.postalCode].filter(Boolean).join(", ");
+          }
+        }
+      }
+    } catch { /* bad JSON-LD */ }
+  }
+
+  // Try to pull price from common patterns
+  const priceMatch = html.match(/\$[\d,]+(?:\.\d{2})?/) || html.match(/"price"\s*:\s*"?\$?([\d,]+)/);
+  if (priceMatch) data.price = priceMatch[0].replace(/[$,]/g, "");
+
+  // Beds/baths from meta or text patterns
+  const bedsMatch = html.match(/(\d+)\s*(?:bed|bd|bedroom)/i);
+  if (bedsMatch) data.beds = bedsMatch[1];
+  const bathsMatch = html.match(/(\d+(?:\.\d+)?)\s*(?:bath|ba|bathroom)/i);
+  if (bathsMatch) data.baths = bathsMatch[1];
+  const sqftMatch = html.match(/([\d,]+)\s*(?:sq\s*ft|sqft|square\s*feet)/i);
+  if (sqftMatch) data.sqft = sqftMatch[1];
+
+  return data;
+}
+
 export async function scrapeListingUrl(url, apiKey, provider) {
   // Fetch the listing page HTML
   const res = await fetch(url, {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; FlyrAI/1.0)" },
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.9",
+    },
   });
   if (!res.ok) throw new Error(`Failed to fetch URL: ${res.status}`);
   const html = await res.text();
@@ -92,18 +145,28 @@ export async function scrapeListingUrl(url, apiKey, provider) {
   // Extract images from full HTML (before truncation)
   const images = extractImagesFromHtml(html);
 
-  // Truncate to avoid token limits for AI extraction
-  const trimmed = html.slice(0, 12000);
-
-  const system = "You extract real estate listing data from HTML. Return ONLY valid JSON.";
-  const prompt = `Extract property details from this listing page HTML. Return ONLY JSON with these fields:
+  let json;
+  if (apiKey) {
+    // Use AI for rich text extraction
+    const trimmed = html.slice(0, 12000);
+    const system = "You extract real estate listing data from HTML. Return ONLY valid JSON.";
+    const prompt = `Extract property details from this listing page HTML. Return ONLY JSON with these fields:
 {"address":"full address","price":489000,"beds":4,"baths":3,"sqft":"2,340","description":"Two compelling sentences about the property."}
 
 HTML:
 ${trimmed}`;
 
-  const text = await callAI(apiKey, provider, system, prompt, 500);
-  const json = JSON.parse(text.replace(/```json|```/g, "").trim());
+    try {
+      const text = await callAI(apiKey, provider, system, prompt, 500);
+      json = JSON.parse(text.replace(/```json|```/g, "").trim());
+    } catch {
+      // AI failed, fall back to basic extraction
+      json = extractBasicDataFromHtml(html);
+    }
+  } else {
+    // No API key — extract basic data from HTML meta/structured data
+    json = extractBasicDataFromHtml(html);
+  }
 
   // Transform image URLs to proxy URLs to avoid CDN hotlink blocking
   const proxiedImages = images.map(u => `/api/generate/image-proxy?url=${encodeURIComponent(u)}`);

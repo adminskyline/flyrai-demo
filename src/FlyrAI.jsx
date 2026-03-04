@@ -67,19 +67,17 @@ export default function FlyrAI({ onDone }) {
   const isPlaybook = assetObj?.category==="Playbook";
 
   // ── Import URL ──
+  const [importError, setImportError] = useState("");
   const importUrl = async () => {
     if (!property.url) return;
-    setUrlLoading(true);
+    setUrlLoading(true); setImportError("");
     try {
       const res = await api.post("/import-url", { url: property.url });
       const j = res.data;
       setProperty(p=>({...p,...j,price:String(j.price||p.price),images:[...uploadedPhotos,...(j.images||[])].slice(0,8)}));
-    } catch {
-      setProperty(p=>({...p,address:"2847 Cypress Lake Dr, Tampa, FL 33618",price:"489000",beds:"4",baths:"3",sqft:"2,340",description:"Stunning 4-bedroom pool home in a private gated community. Chef's kitchen, open floor plan, and oversized screened lanai overlooking conservation lot.",images:[
-        "https://images.pexels.com/photos/186077/pexels-photo-186077.jpeg?auto=compress&cs=tinysrgb&w=800",
-        "https://images.pexels.com/photos/1396122/pexels-photo-1396122.jpeg?auto=compress&cs=tinysrgb&w=800",
-        "https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=800",
-      ]}));
+      if (!j.images?.length) setImportError("Imported listing data but couldn't extract photos. You can upload photos manually below.");
+    } catch (err) {
+      setImportError("Failed to import: " + (err.message || "Unknown error. Try entering details manually."));
     }
     setUrlLoading(false);
   };
@@ -313,6 +311,7 @@ export default function FlyrAI({ onDone }) {
           <button onClick={importUrl} disabled={urlLoading} style={{...BTN_P,whiteSpace:"nowrap",opacity:urlLoading?.5:1}}>{urlLoading?"\u23F3":"Import"}</button>
         </div>
         <div style={{fontSize:11,color:"#94a3b8",marginTop:6}}>AI extracts address, price, beds, baths & description</div>
+        {importError && <div style={{fontSize:12,color:"#b45309",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:6,padding:"6px 10px",marginTop:8}}>{importError}</div>}
       </div>
       <div style={{textAlign:"center",color:"#94a3b8",fontSize:12,margin:"10px 0"}}>{"\u2014"} or enter manually {"\u2014"}</div>
       <div style={{display:"flex",flexDirection:"column",gap:8}}>

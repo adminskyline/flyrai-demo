@@ -8,7 +8,7 @@ const RULE_VALIDATORS = {
   "Brokerage name & logo":             (p) => !!p.company?.trim(),
   "Phone number":                      (p) => !!p.phone?.trim(),
   "State license number":              (p) => !!p.license?.trim(),
-  "State license disclosure":          (p) => !!p.license?.trim(),
+  "State license disclosure":          () => true, // auto-generated in templates per state
   "Equal Housing Opportunity":         () => true, // baked into templates
   "Not a commitment to lend disclaimer": () => true, // baked into templates
 };

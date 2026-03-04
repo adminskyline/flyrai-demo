@@ -1,8 +1,8 @@
 import { forwardRef } from "react";
 import { ASSET_TYPES } from "../data/constants";
 
-const PAGE_W = 595;
-const PAGE_H = 842;
+const PAGE_W = 612;
+const PAGE_H = 792;
 const brandColor = "#1e3a5f";
 const accentGold = "#f0c040";
 
@@ -10,6 +10,10 @@ const PlaybookPreview = forwardRef(function PlaybookPreview({ playbookData, prof
   const asset = ASSET_TYPES.find(a=>a.id===assetId);
   const showPartner = cobrand && partner?.name;
   const pages = playbookData?.pages || [];
+
+  const complianceText = accountType==="lo"
+    ? `${profile?.company} NMLS #${profile?.companyNmls || profile?.company_nmls} | Not a commitment to lend | Equal Housing Opportunity | Licensed in ${selectedStates.join(", ")}`
+    : `Equal Housing Opportunity | ${profile?.company} | Lic. #${profile?.license} | ${selectedStates.join(", ")}`;
 
   const pageBase = {
     width: PAGE_W,
@@ -57,10 +61,10 @@ const PlaybookPreview = forwardRef(function PlaybookPreview({ playbookData, prof
         </div>
 
         {/* Stat cards — absolutely positioned in middle area */}
-        <div style={{ position: "absolute", top: 400, left: 40, right: 40, zIndex: 2, display: "flex", gap: 14 }}>
+        <div style={{ position: "absolute", top: 380, left: 40, right: 40, zIndex: 2, display: "flex", gap: 14 }}>
           {(playbookData?.keyStats||[]).map((stat,i)=>(
-            <div key={i} style={{ flex: 1, background: "rgba(255,255,255,.1)", backdropFilter: "blur(12px)", borderRadius: 12, padding: "20px 16px", textAlign: "center", border: "1px solid rgba(255,255,255,.12)" }}>
-              <div style={{ fontSize: 34, fontWeight: 900, color: accentGold, fontFamily: "'Playfair Display',serif", lineHeight: 1 }}>{stat.value}</div>
+            <div key={i} style={{ flex: 1, background: "rgba(255,255,255,.1)", backdropFilter: "blur(12px)", borderRadius: 12, padding: "18px 14px", textAlign: "center", border: "1px solid rgba(255,255,255,.12)" }}>
+              <div style={{ fontSize: 32, fontWeight: 900, color: accentGold, fontFamily: "'Playfair Display',serif", lineHeight: 1 }}>{stat.value}</div>
               <div style={{ fontSize: 11, color: "#a8c8e0", marginTop: 6, lineHeight: 1.3 }}>{stat.label}</div>
             </div>
           ))}
@@ -87,8 +91,8 @@ const PlaybookPreview = forwardRef(function PlaybookPreview({ playbookData, prof
       {/* ─── INTERIOR PAGES ─── */}
       {pages.map((page,pi)=>{
         const isEven = pi % 2 === 0;
+        const isLastPage = pi === pages.length - 1;
         const pageImg = pexelsImages[`page_${pi}`];
-        const imgHeight = 300;
         const pullQuote = page.body ? page.body.split(/[.!?]/)[0] + "." : "";
 
         return (
@@ -96,10 +100,10 @@ const PlaybookPreview = forwardRef(function PlaybookPreview({ playbookData, prof
             {/* Top accent bar */}
             <div style={{ height: 4, background: `linear-gradient(90deg, ${brandColor}, #3b82f6)`, flexShrink: 0 }} />
 
-            {/* Section hero image */}
+            {/* Section hero image — constrained height with background fill */}
             {pageImg && (
-              <div style={{ width: "100%", height: imgHeight, overflow: "hidden", position: "relative", flexShrink: 0 }}>
-                <img src={pageImg} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} onError={e=>{e.target.parentElement.style.display="none"}} />
+              <div style={{ width: "100%", height: 240, overflow: "hidden", position: "relative", flexShrink: 0, background: "#f0f4f8" }}>
+                <img src={pageImg} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", maxHeight: 240, display: "block" }} onError={e=>{e.target.parentElement.style.display="none"}} />
                 <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,transparent 40%,rgba(255,255,255,.9) 100%)" }} />
                 {/* Chapter badge overlay */}
                 <div style={{ position: "absolute", bottom: 18, left: 32, display: "flex", alignItems: "center", gap: 12 }}>
@@ -122,24 +126,24 @@ const PlaybookPreview = forwardRef(function PlaybookPreview({ playbookData, prof
             )}
 
             {/* Content area */}
-            <div style={{ flex: 1, padding: "24px 36px 0", display: "flex", flexDirection: "column" }}>
+            <div style={{ flex: 1, padding: "22px 36px 0", display: "flex", flexDirection: "column" }}>
               {/* Pull-quote on odd pages */}
               {!isEven && (
-                <div style={{ borderLeft: `3px solid ${brandColor}`, paddingLeft: 18, marginBottom: 18 }}>
-                  <p style={{ fontSize: 16, fontWeight: 600, color: "#1e293b", lineHeight: 1.55, margin: 0, fontStyle: "italic" }}>
+                <div style={{ borderLeft: `3px solid ${brandColor}`, paddingLeft: 18, marginBottom: 16 }}>
+                  <p style={{ fontSize: 15, fontWeight: 600, color: "#1e293b", lineHeight: 1.55, margin: 0, fontStyle: "italic" }}>
                     {pullQuote}
                   </p>
                 </div>
               )}
 
               {/* Body text */}
-              <p style={{ fontSize: 14, color: "#475569", lineHeight: 1.75, margin: "0 0 20px" }}>{page.body}</p>
+              <p style={{ fontSize: 13, color: "#475569", lineHeight: 1.75, margin: "0 0 16px" }}>{page.body}</p>
 
               {/* Big stat callout */}
               {page.stat && (
-                <div style={{ display: "flex", alignItems: "center", gap: 18, background: "#f0f7ff", borderRadius: 12, padding: "18px 24px", marginBottom: 20, border: "1px solid #dbeafe" }}>
-                  <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 52, fontWeight: 900, color: brandColor, lineHeight: 1 }}>{page.stat.value}</div>
-                  <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.5 }}>{page.stat.label}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 18, background: "#f0f7ff", borderRadius: 12, padding: "16px 22px", marginBottom: 16, border: "1px solid #dbeafe" }}>
+                  <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 46, fontWeight: 900, color: brandColor, lineHeight: 1 }}>{page.stat.value}</div>
+                  <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>{page.stat.label}</div>
                 </div>
               )}
 
@@ -148,13 +152,13 @@ const PlaybookPreview = forwardRef(function PlaybookPreview({ playbookData, prof
 
               {/* Key Takeaways section */}
               {page.tips && (
-                <div style={{ background: "#f8fafc", borderRadius: 12, padding: "18px 22px", marginBottom: 0, border: "1px solid #e2e8f0" }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: brandColor, marginBottom: 12 }}>Key Takeaways</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+                <div style={{ background: "#f8fafc", borderRadius: 12, padding: "16px 20px", marginBottom: 0, border: "1px solid #e2e8f0" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: brandColor, marginBottom: 10 }}>Key Takeaways</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {page.tips.map((tip,ti)=>(
                       <div key={ti} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                        <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#eff6ff", border: "1.5px solid #bfdbfe", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, flexShrink: 0, marginTop: 1, color: brandColor, fontWeight: 700 }}>{"\u2713"}</div>
-                        <span style={{ fontSize: 13, color: "#334155", lineHeight: 1.55 }}>{tip}</span>
+                        <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#eff6ff", border: "1.5px solid #bfdbfe", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0, marginTop: 1, color: brandColor, fontWeight: 700 }}>{"\u2713"}</div>
+                        <span style={{ fontSize: 12, color: "#334155", lineHeight: 1.55 }}>{tip}</span>
                       </div>
                     ))}
                   </div>
@@ -162,23 +166,21 @@ const PlaybookPreview = forwardRef(function PlaybookPreview({ playbookData, prof
               )}
             </div>
 
-            {/* Page footer */}
-            <div style={{ padding: "12px 36px", borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
-              <div style={{ fontSize: 10, color: "#94a3b8" }}>{profile?.company || ""}</div>
-              <div style={{ fontSize: 10, color: "#94a3b8" }}>Page {pi + 2}</div>
+            {/* Page footer — includes compliance on last page */}
+            <div style={{ padding: "10px 36px", borderTop: "1px solid #f1f5f9", display: "flex", flexDirection: isLastPage ? "column" : "row", justifyContent: isLastPage ? "flex-start" : "space-between", alignItems: isLastPage ? "stretch" : "center", flexShrink: 0, gap: isLastPage ? 6 : 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ fontSize: 10, color: "#94a3b8" }}>{profile?.company || ""}</div>
+                <div style={{ fontSize: 10, color: "#94a3b8" }}>Page {pi + 2}</div>
+              </div>
+              {isLastPage && (
+                <div style={{ fontSize: 9, color: "#94a3b8", lineHeight: 1.6, borderTop: "1px solid #e2e8f0", paddingTop: 6 }}>
+                  {complianceText}
+                </div>
+              )}
             </div>
           </div>
         );
       })}
-
-      {/* ─── COMPLIANCE FOOTER (renders as last PDF page section) ─── */}
-      <div data-playbook-page="footer" style={{ ...pageBase, height: "auto", background: "#f8fafc", padding: "14px 24px", border: "1px solid #e2e8f0" }}>
-        <div style={{ fontSize: 10, color: "#94a3b8", lineHeight: 1.6 }}>
-          {accountType==="lo"
-            ? `${profile?.company} NMLS #${profile?.companyNmls || profile?.company_nmls} | Not a commitment to lend | Equal Housing Opportunity | Licensed in ${selectedStates.join(", ")}`
-            : `Equal Housing Opportunity | ${profile?.company} | Lic. #${profile?.license} | ${selectedStates.join(", ")}`}
-        </div>
-      </div>
     </div>
   );
 });

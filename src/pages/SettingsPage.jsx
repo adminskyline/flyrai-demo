@@ -12,23 +12,68 @@ export default function SettingsPage({ onBack }) {
   const [pexelsKey, setPexelsKey] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
+  const [removingBg, setRemovingBg] = useState(null); // "headshot" | "logo" | null
 
   useEffect(() => {
     api.get("/profile").then(d => setProfile(d.profile));
     api.get("/settings").then(d => setSettings(d));
   }, []);
 
-  const fileToBase64 = (file) => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+  // Compress image to max 400x400, JPEG quality 0.7 — keeps base64 under ~100KB
+  const compressImage = (file, maxSize = 400) => new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement("canvas");
+      let w = img.width, h = img.height;
+      if (w > maxSize || h > maxSize) {
+        const ratio = Math.min(maxSize / w, maxSize / h);
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+      }
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", 0.7));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      // Fallback to raw FileReader
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.readAsDataURL(file);
+    };
+    img.src = url;
   });
 
   const handleImageUpload = async (field, file) => {
     if (!file) return;
-    const base64 = await fileToBase64(file);
+    const base64 = await compressImage(file);
     setProfile(p => ({ ...p, [field]: base64 }));
+  };
+
+  const removeBackground = async (field) => {
+    const imgSrc = profile[field];
+    if (!imgSrc) return;
+
+    setRemovingBg(field);
+    try {
+      const { removeBackground: removeBg } = await import("@imgly/background-removal");
+      const blob = await removeBg(imgSrc, { output: { format: "image/png" } });
+      const reader = new FileReader();
+      const base64 = await new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      setProfile(p => ({ ...p, [field]: base64 }));
+      setMsg("Background removed!");
+    } catch (err) {
+      setMsg("Error removing background: " + (err.message || "Unknown error"));
+    }
+    setRemovingBg(null);
   };
 
   const saveProfile = async () => {
@@ -123,7 +168,17 @@ export default function SettingsPage({ onBack }) {
                   Upload
                   <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>handleImageUpload("headshot_url",e.target.files?.[0])}/>
                 </label>
-                {profile.headshot_url && <button onClick={()=>setProfile(p=>({...p,headshot_url:null}))} style={{display:"block",margin:"4px auto 0",background:"none",border:"none",color:"#dc2626",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>Remove</button>}
+                {profile.headshot_url && (
+                  <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4, marginTop:4 }}>
+                    <button
+                      onClick={()=>removeBackground("headshot_url")}
+                      disabled={removingBg==="headshot_url"}
+                      style={{ background:"none", border:"1.5px solid #a78bfa", borderRadius:6, color:"#7c3aed", fontSize:11, fontWeight:600, cursor:removingBg==="headshot_url"?"wait":"pointer", padding:"4px 10px", fontFamily:"inherit", opacity:removingBg==="headshot_url"?.5:1 }}>
+                      {removingBg==="headshot_url" ? "\u23F3 Removing..." : "\u2728 Remove BG"}
+                    </button>
+                    <button onClick={()=>setProfile(p=>({...p,headshot_url:null}))} style={{background:"none",border:"none",color:"#dc2626",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>Remove</button>
+                  </div>
+                )}
               </div>
               {/* Logo */}
               <div style={{ flex:1, textAlign:"center" }}>
@@ -135,8 +190,21 @@ export default function SettingsPage({ onBack }) {
                   Upload
                   <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>handleImageUpload("logo_url",e.target.files?.[0])}/>
                 </label>
-                {profile.logo_url && <button onClick={()=>setProfile(p=>({...p,logo_url:null}))} style={{display:"block",margin:"4px auto 0",background:"none",border:"none",color:"#dc2626",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>Remove</button>}
+                {profile.logo_url && (
+                  <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4, marginTop:4 }}>
+                    <button
+                      onClick={()=>removeBackground("logo_url")}
+                      disabled={removingBg==="logo_url"}
+                      style={{ background:"none", border:"1.5px solid #a78bfa", borderRadius:6, color:"#7c3aed", fontSize:11, fontWeight:600, cursor:removingBg==="logo_url"?"wait":"pointer", padding:"4px 10px", fontFamily:"inherit", opacity:removingBg==="logo_url"?.5:1 }}>
+                      {removingBg==="logo_url" ? "\u23F3 Removing..." : "\u2728 Remove BG"}
+                    </button>
+                    <button onClick={()=>setProfile(p=>({...p,logo_url:null}))} style={{background:"none",border:"none",color:"#dc2626",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>Remove</button>
+                  </div>
+                )}
               </div>
+            </div>
+            <div style={{ fontSize:11, color:"#94a3b8", textAlign:"center", lineHeight:1.5 }}>
+              For best results, use a clear headshot against a plain background
             </div>
 
             <div style={{ fontSize:13, fontWeight:600, color:"#334155", marginTop:4 }}>Licensed States</div>

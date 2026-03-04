@@ -42,8 +42,9 @@ export async function exportPlaybookToPdf(element, filename = "FlyrAI-playbook.p
       imageTimeout: 15000,
     });
     const imgData = canvas.toDataURL("image/jpeg", 0.92);
-    const pdfW = 595.28;
-    const pdfH = (canvas.height * pdfW) / canvas.width;
+    // US Letter in points: 612 * 72/96 = 459, 792 * 72/96 = 594
+    const pdfW = 612 * 0.75;
+    const pdfH = 792 * 0.75;
     const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: [pdfW, pdfH] });
     pdf.addImage(imgData, "JPEG", 0, 0, pdfW, pdfH);
     pdf.save(filename);
@@ -51,18 +52,16 @@ export async function exportPlaybookToPdf(element, filename = "FlyrAI-playbook.p
   }
 
   // 1:1 page rendering — each page element maps directly to a PDF page
-  // Pages are already rendered at 595×842 (A4), so no scaling/centering needed
   const pxToPt = 72 / 96;
   let pdf = null;
 
   for (let i = 0; i < pageElements.length; i++) {
     const el = pageElements[i];
-    const isFooter = el.getAttribute("data-playbook-page") === "footer";
 
     const canvas = await html2canvas(el, {
       scale: 2,
       useCORS: true,
-      backgroundColor: isFooter ? "#f8fafc" : "#ffffff",
+      backgroundColor: "#ffffff",
       imageTimeout: 15000,
     });
 

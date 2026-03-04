@@ -3,7 +3,6 @@ import { get } from "../db.js";
 import auth from "../middleware/auth.js";
 import { decrypt } from "../services/crypto.js";
 import { callAI } from "../services/ai.js";
-import { scrapeListingUrl } from "../services/scraper.js";
 
 const router = Router();
 
@@ -121,50 +120,28 @@ router.get("/pexels", auth, async (req, res) => {
   }
 });
 
-// Image proxy — fetch external listing images server-side to avoid CDN hotlink blocking
-const ALLOWED_HOSTS = ["photos.zillowstatic.com", "photos.rdc.moveaws.com", "ap.rdcpix.com", "images.pexels.com", "ssl.cdn-redfin.com", "cdn-redfin.com", "mediaserver.resaas.com", "img.zillowstatic.com", "p.rdcpix.com"];
-
-router.get("/image-proxy", auth, async (req, res) => {
+// Enhance description — AI polish for property descriptions
+router.post("/enhance-description", auth, async (req, res) => {
   try {
-    const { url } = req.query;
-    if (!url) return res.status(400).json({ error: "url is required" });
-
-    let parsed;
-    try { parsed = new URL(url); } catch { return res.status(400).json({ error: "invalid url" }); }
-
-    if (!ALLOWED_HOSTS.some(h => parsed.hostname === h || parsed.hostname.endsWith("." + h))) {
-      return res.status(403).json({ error: "host not allowed" });
-    }
-
-    const imgRes = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; FlyrAI/1.0)", "Referer": parsed.origin },
-      redirect: "follow",
-    });
-    if (!imgRes.ok) return res.status(imgRes.status).end();
-
-    const ct = imgRes.headers.get("content-type") || "image/jpeg";
-    res.setHeader("Content-Type", ct);
-    res.setHeader("Cache-Control", "public, max-age=86400");
-
-    const arrayBuf = await imgRes.arrayBuffer();
-    res.send(Buffer.from(arrayBuf));
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Import URL
-router.post("/import-url", auth, async (req, res) => {
-  try {
-    const { url } = req.body;
-    if (!url) return res.status(400).json({ error: "url is required" });
+    const { description } = req.body;
+    if (!description?.trim()) return res.json({ enhanced: description || "" });
 
     const creds = getUserKey(req.userId);
-    // Always attempt to scrape — pass null key if no API key (scraper will still extract images + basic data from HTML)
-    const data = await scrapeListingUrl(url, creds?.key || null, creds?.provider || "anthropic");
-    res.json({ mock: !creds, data });
+    if (!creds) {
+      // No API key — return a lightly polished version via simple string transforms
+      const enhanced = description.trim()
+        .replace(/\b(\w)/g, (m, c) => c.toUpperCase())
+        .replace(/\.(\s|$)/g, ". ")
+        .trim();
+      return res.json({ enhanced: enhanced || description });
+    }
+
+    const prompt = `Polish this real estate property description. Make it compelling, professional, and concise (2-3 sentences max). Keep all factual details. Do NOT add made-up features. Return ONLY the polished text, no quotes or explanation.\n\nOriginal: ${description}`;
+
+    const text = await callAI(creds.key, creds.provider, "You are a real estate copywriter. Return only the polished description text.", prompt, 300);
+    res.json({ enhanced: text.trim() });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.json({ enhanced: req.body.description || "" });
   }
 });
 

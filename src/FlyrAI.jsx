@@ -548,7 +548,7 @@ export default function FlyrAI({ onDone }) {
       {isPlaybook && playbookData ? (
         <>
           {/* Hidden offscreen render for PDF capture */}
-          <div style={{position:"absolute",left:"-9999px",top:0,opacity:0,pointerEvents:"none"}}>
+          <div style={{position:"fixed",left:"-9999px",top:0,pointerEvents:"none",zIndex:-1}}>
             <PlaybookPreview ref={playbookRef} playbookData={playbookData} profile={profile} partner={activePartner} cobrand={cobrand} accountType={acctType} selectedStates={states} assetId={asset} pexelsImages={pexelsImages}/>
           </div>
 
@@ -563,7 +563,7 @@ export default function FlyrAI({ onDone }) {
                 ?"Check your downloads folder. Click below to download again."
                 :playbookDownloading
                   ?"Rendering pages... this may take a moment."
-                  :`"${playbookData.title}" \u2014 ${pages.length + 1} pages`}
+                  :`"${playbookData.title}" \u2014 ${(playbookData.pages?.length || 0) + 1} pages`}
             </div>
             <div style={{display:"flex",gap:8,justifyContent:"center"}}>
               <button onClick={downloadPlaybook} disabled={playbookDownloading} style={{...BTN_P,fontSize:14,padding:"12px 28px",opacity:playbookDownloading?.5:1}}>

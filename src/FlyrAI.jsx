@@ -72,7 +72,7 @@ export default function FlyrAI({ onDone }) {
     if (!property.url) return;
     setUrlLoading(true); setImportError("");
     try {
-      const res = await api.post("/import-url", { url: property.url });
+      const res = await api.post("/generate/import-url", { url: property.url });
       const j = res.data;
       setProperty(p=>({...p,...j,price:String(j.price||p.price),images:[...uploadedPhotos,...(j.images||[])].slice(0,8)}));
       if (!j.images?.length) setImportError("Imported listing data but couldn't extract photos. You can upload photos manually below.");

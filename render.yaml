@@ -2,7 +2,7 @@ services:
   - type: web
     name: getpostedai
     runtime: node
-    buildCommand: npm install && npm run build && cd server && npm install && node server/seed-admin.js
+    buildCommand: npm install && npm run build && cd server && npm install && node seed-admin.js
     startCommand: cd server && node index.js
     envVars:
       - key: NODE_ENV

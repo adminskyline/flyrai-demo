@@ -1,7 +1,7 @@
 const BASE = "/api";
 
 function getToken() {
-  return localStorage.getItem("flyrai_token");
+  return localStorage.getItem("getpostedai_token");
 }
 
 async function request(method, path, body) {

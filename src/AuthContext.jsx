@@ -8,33 +8,33 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("flyrai_token");
+    const token = localStorage.getItem("getpostedai_token");
     if (!token) {
       setLoading(false);
       return;
     }
     api.get("/auth/me")
       .then((data) => setUser(data.user))
-      .catch(() => localStorage.removeItem("flyrai_token"))
+      .catch(() => localStorage.removeItem("getpostedai_token"))
       .finally(() => setLoading(false));
   }, []);
 
   const login = async (email, password) => {
     const data = await api.post("/auth/login", { email, password });
-    localStorage.setItem("flyrai_token", data.token);
+    localStorage.setItem("getpostedai_token", data.token);
     setUser(data.user);
     return data.user;
   };
 
   const register = async (email, password, accountType, name) => {
     const data = await api.post("/auth/register", { email, password, accountType, name });
-    localStorage.setItem("flyrai_token", data.token);
+    localStorage.setItem("getpostedai_token", data.token);
     setUser(data.user);
     return data.user;
   };
 
   const logout = () => {
-    localStorage.removeItem("flyrai_token");
+    localStorage.removeItem("getpostedai_token");
     setUser(null);
   };
 

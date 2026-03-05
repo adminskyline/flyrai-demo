@@ -4,7 +4,7 @@ import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DB_PATH = join(__dirname, "data", "flyrai.db");
+const DB_PATH = join(__dirname, "data", "getpostedai.db");
 
 // Ensure data dir exists
 const dataDir = join(__dirname, "data");
@@ -56,6 +56,11 @@ export async function initDB() {
     db.run("ALTER TABLE users ADD COLUMN logo_url TEXT DEFAULT NULL");
   } catch { /* column already exists */ }
 
+  // Add admin flag
+  try {
+    db.run("ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0");
+  } catch { /* column already exists */ }
+
   // Add pexels_key columns (sql.js lacks IF NOT EXISTS for columns)
   try {
     db.run("ALTER TABLE user_settings ADD COLUMN pexels_key_enc TEXT DEFAULT NULL");
@@ -63,6 +68,22 @@ export async function initDB() {
   try {
     db.run("ALTER TABLE user_settings ADD COLUMN pexels_key_iv TEXT DEFAULT NULL");
   } catch { /* column already exists */ }
+
+  // Subscriptions table
+  db.run(`
+    CREATE TABLE IF NOT EXISTS subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      stripe_customer_id TEXT,
+      stripe_subscription_id TEXT,
+      status TEXT NOT NULL DEFAULT 'inactive',
+      plan TEXT DEFAULT 'pro',
+      current_period_start TEXT,
+      current_period_end TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
 
   db.run(`
     CREATE TABLE IF NOT EXISTS saved_items (

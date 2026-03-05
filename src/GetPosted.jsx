@@ -19,7 +19,7 @@ const DESIGN_LABELS = ["Magazine", "Split", "Grid"];
 const COLOR_LABELS = ["Light", "Dark", "Navy"];
 const COLOR_SWATCHES = ["#f7f8fc", "#070707", "#0c1628"];
 
-export default function FlyrAI({ onDone }) {
+export default function GetPosted({ onDone }) {
   const { user } = useAuth();
 
   // Build profile from user data
@@ -273,14 +273,14 @@ export default function FlyrAI({ onDone }) {
   const downloadFlyer = () => {
     if (flyerRef.current) {
       const fmtObj = FLYER_FORMATS.find(f=>f.id===format);
-      exportElementToPdf(flyerRef.current, `FlyrAI-${fmtObj?.label || "flyer"}.pdf`);
+      exportElementToPdf(flyerRef.current, `GetPosted-${fmtObj?.label || "flyer"}.pdf`);
     }
   };
   const downloadPlaybook = useCallback(async () => {
     if (playbookRef.current) {
       setPlaybookDownloading(true);
       try {
-        await exportPlaybookToPdf(playbookRef.current, `FlyrAI-${assetObj?.label || "playbook"}.pdf`);
+        await exportPlaybookToPdf(playbookRef.current, `GetPosted-${assetObj?.label || "playbook"}.pdf`);
         setPlaybookDownloaded(true);
       } catch { /* silent */ }
       setPlaybookDownloading(false);
@@ -303,7 +303,7 @@ export default function FlyrAI({ onDone }) {
   const S0 = (
     <div style={{textAlign:"center",padding:"52px 16px"}}>
       <div style={{fontSize:"48px",marginBottom:"14px"}}>{"\u2726"}</div>
-      <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:"46px",fontWeight:900,margin:"0 0 10px",letterSpacing:"-1.5px",color:"#0f172a"}}>FlyrAI</h1>
+      <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:"46px",fontWeight:900,margin:"0 0 10px",letterSpacing:"-1.5px",color:"#0f172a"}}>GetPosted</h1>
       <p style={{fontSize:"16px",color:"#64748b",maxWidth:"360px",margin:"0 auto 44px",lineHeight:1.65}}>
         On-demand co-branded marketing flyers & playbooks for mortgage & real estate pros {"\u2014"} compliance built in.
       </p>
@@ -700,7 +700,7 @@ export default function FlyrAI({ onDone }) {
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
             <div style={{display:"flex",alignItems:"center",gap:7}}>
               <span style={{fontSize:17}}>{"\u2726"}</span>
-              <span style={{fontWeight:900,fontSize:17,letterSpacing:"-0.5px",fontFamily:"'Playfair Display',serif"}}>FlyrAI</span>
+              <span style={{fontWeight:900,fontSize:17,letterSpacing:"-0.5px",fontFamily:"'Playfair Display',serif"}}>GetPosted</span>
             </div>
             <div style={{display:"flex",gap:4}}>
               {Array.from({length:totalSteps}).map((_,i)=>(

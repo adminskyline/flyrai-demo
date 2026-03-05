@@ -4,7 +4,7 @@ import api from "../api";
 import { BTN_P, BTN_S } from "../components/SharedUI";
 import { ASSET_TYPES } from "../data/constants";
 
-export default function DashboardPage({ onNewFlyer, onSettings }) {
+export default function DashboardPage({ onNewFlyer, onSettings, onAdmin }) {
   const { user, logout } = useAuth();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,11 +29,12 @@ export default function DashboardPage({ onNewFlyer, onSettings }) {
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:24 }}>
           <div style={{ display:"flex", alignItems:"center", gap:7 }}>
             <span style={{ fontSize:17 }}>{"\u2726"}</span>
-            <span style={{ fontWeight:900, fontSize:17, letterSpacing:"-0.5px", fontFamily:"'Playfair Display',serif" }}>FlyrAI</span>
+            <span style={{ fontWeight:900, fontSize:17, letterSpacing:"-0.5px", fontFamily:"'Playfair Display',serif" }}>GetPosted</span>
           </div>
           <div style={{ display:"flex", gap:8, alignItems:"center" }}>
             <span style={{ fontSize:13, color:"#64748b" }}>{user?.name}</span>
-            <button onClick={onSettings} style={{ ...BTN_S, fontSize:12, padding:"6px 12px" }}>{"\u2699\uFE0F"} Settings</button>
+            {onAdmin && <button onClick={onAdmin} style={{ ...BTN_S, fontSize:12, padding:"6px 12px", background:"#1e3a5f", color:"white", border:"none" }}>Admin</button>}
+            <button onClick={onSettings} style={{ ...BTN_S, fontSize:12, padding:"6px 12px" }}>Settings</button>
             <button onClick={logout} style={{ ...BTN_S, fontSize:12, padding:"6px 12px" }}>Logout</button>
           </div>
         </div>

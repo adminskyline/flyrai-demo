@@ -13,7 +13,11 @@ function makeToken(user) {
 
 function sanitizeUser(row) {
   const { password_hash, ...rest } = row;
-  return { ...rest, states: JSON.parse(rest.states || '["FL"]') };
+  const user = { ...rest, states: JSON.parse(rest.states || '["FL"]') };
+  // Attach subscription status
+  const sub = get("SELECT status, plan, current_period_end FROM subscriptions WHERE user_id = ?", [row.id]);
+  user.subscription = sub ? { status: sub.status, plan: sub.plan, expires: sub.current_period_end } : { status: "inactive", plan: null };
+  return user;
 }
 
 // Register

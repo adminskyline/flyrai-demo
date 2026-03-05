@@ -4,11 +4,12 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import DashboardPage from "./pages/DashboardPage";
 import SettingsPage from "./pages/SettingsPage";
-import FlyrAI from "./FlyrAI";
+import AdminPage from "./pages/AdminPage";
+import GetPosted from "./GetPosted";
 
 function AppRoutes() {
   const { user, loading } = useAuth();
-  const [page, setPage] = useState("login"); // login | register | dashboard | wizard | settings
+  const [page, setPage] = useState("login");
 
   if (loading) {
     return (
@@ -24,10 +25,18 @@ function AppRoutes() {
     return <LoginPage onSwitch={() => setPage("register")} />;
   }
 
-  // Logged in
-  if (page === "wizard") return <FlyrAI onDone={() => setPage("dashboard")} />;
+  // Logged in routes
+  if (page === "admin" && user.is_admin) return <AdminPage onBack={() => setPage("dashboard")} />;
+  if (page === "wizard") return <GetPosted onDone={() => setPage("dashboard")} />;
   if (page === "settings") return <SettingsPage onBack={() => setPage("dashboard")} />;
-  return <DashboardPage onNewFlyer={() => setPage("wizard")} onSettings={() => setPage("settings")} />;
+
+  return (
+    <DashboardPage
+      onNewFlyer={() => setPage("wizard")}
+      onSettings={() => setPage("settings")}
+      onAdmin={user.is_admin ? () => setPage("admin") : null}
+    />
+  );
 }
 
 function App() {

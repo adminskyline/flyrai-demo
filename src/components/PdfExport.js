@@ -1,7 +1,7 @@
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 
-export async function exportElementToPdf(element, filename = "FlyrAI-export.pdf") {
+export async function exportElementToPdf(element, filename = "GetPosted-export.pdf") {
   if (!element) return;
 
   const canvas = await html2canvas(element, {
@@ -29,7 +29,7 @@ export async function exportElementToPdf(element, filename = "FlyrAI-export.pdf"
   pdf.save(filename);
 }
 
-export async function exportPlaybookToPdf(element, filename = "FlyrAI-playbook.pdf") {
+export async function exportPlaybookToPdf(element, filename = "GetPosted-playbook.pdf") {
   if (!element) return;
 
   const pageElements = element.querySelectorAll("[data-playbook-page]");

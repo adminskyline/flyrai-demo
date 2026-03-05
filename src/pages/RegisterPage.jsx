@@ -29,7 +29,7 @@ export default function RegisterPage({ onSwitch }) {
       <div style={{ width:"100%", maxWidth:440 }}>
         <div style={{ textAlign:"center", marginBottom:28 }}>
           <div style={{ fontSize:48, marginBottom:14 }}>{"\u2726"}</div>
-          <h1 style={{ fontFamily:"'Playfair Display',serif", fontSize:36, fontWeight:900, margin:"0 0 8px", letterSpacing:"-1px", color:"#0f172a" }}>FlyrAI</h1>
+          <h1 style={{ fontFamily:"'Playfair Display',serif", fontSize:36, fontWeight:900, margin:"0 0 8px", letterSpacing:"-1px", color:"#0f172a" }}>GetPosted</h1>
           <p style={{ fontSize:14, color:"#64748b", margin:0 }}>Create your account</p>
         </div>
         <form onSubmit={handleSubmit} style={{ background:"white", borderRadius:16, padding:"28px 24px", boxShadow:"0 4px 24px rgba(0,0,0,.07)" }}>

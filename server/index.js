@@ -9,6 +9,9 @@ import profileRoutes from "./routes/profile.js";
 import settingsRoutes from "./routes/settings.js";
 import generateRoutes from "./routes/generate.js";
 import flyersRoutes from "./routes/flyers.js";
+import subscriptionRoutes from "./routes/subscription.js";
+import webhookRoutes from "./routes/webhook.js";
+import adminRoutes from "./routes/admin.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,6 +20,11 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(cors());
+
+// Webhook route needs raw body for Stripe signature verification
+app.use("/api/webhook", express.raw({ type: "application/json" }));
+
+// Everything else gets JSON parsing
 app.use(express.json({ limit: "10mb" }));
 
 // Routes
@@ -25,6 +33,9 @@ app.use("/api/profile", profileRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/generate", generateRoutes);
 app.use("/api/flyers", flyersRoutes);
+app.use("/api/subscription", subscriptionRoutes);
+app.use("/api/webhook", webhookRoutes);
+app.use("/api/admin", adminRoutes);
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
@@ -38,7 +49,7 @@ app.get("*", (_req, res) => {
 async function start() {
   await initDB();
   app.listen(PORT, () => {
-    console.log(`FlyrAI server running on http://localhost:${PORT}`);
+    console.log(`GetPostedAI server running on http://localhost:${PORT}`);
   });
 }
 

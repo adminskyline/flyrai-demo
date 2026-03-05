@@ -132,7 +132,7 @@ export default function SettingsPage({ onBack }) {
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
           <div style={{ display:"flex", alignItems:"center", gap:7 }}>
             <span style={{ fontSize:17 }}>{"\u2726"}</span>
-            <span style={{ fontWeight:900, fontSize:17, letterSpacing:"-0.5px", fontFamily:"'Playfair Display',serif" }}>FlyrAI</span>
+            <span style={{ fontWeight:900, fontSize:17, letterSpacing:"-0.5px", fontFamily:"'Playfair Display',serif" }}>GetPosted</span>
           </div>
           <button onClick={onBack} style={{ ...BTN_S, fontSize:13, padding:"7px 14px" }}>{"\u2190"} Back</button>
         </div>
